@@ -3,6 +3,7 @@ import click
 from pyfiglet import Figlet
 import mysql.connector
 from db_transactions import *
+from getpass import getpass
 
 
 Blank = " "
@@ -26,20 +27,25 @@ def init():
 #Authentication Purpose
 @main.command()
 def Auth():
-    username = str(input("please enter your username: \n"))
-    password = str(input("please enter your password: \n"))
+    username = input("Please enter your username: ").strip()
+    password = getpass("Please enter your password: ")
 
-    if len(username) == 0 or len(password) == 0 :
-        print("please fill the values")
+    if not username or not password:
+        print("Error: Username and password cannot be empty. Please try again.")
+        return
+
+    connection, cursor = sqlMount("localhost", "root", "", "expensify")
+    if connection and connection.is_connected():
+        try:
+            print(f"Username: {username}")
+            print("Authentication successful.")
+        except Exception as e:
+            print(f"Error during authentication: {e}")
+        finally:
+            cursor.close()
+            connection.close()
     else:
-        connection,cursor = sqlMount("localhost","root","","expensify")
-        if connection.is_connected():
-            print(username)
-            print(password)
-
-
-
-
+        print("Database connection failed. Please check your credentials and try again.")
 
 
 if __name__ =='__main__':
