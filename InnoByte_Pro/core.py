@@ -11,6 +11,8 @@ APP_VERSION = '0.01'
 APP_NAME = 'ExpensiFy CLI'
 DEFAULT_FONT = 'slant'
 
+Db_dict = {'id':1}
+
 
 # Helper Functions
 def display_banner():
@@ -62,6 +64,8 @@ def init():
     username = input("Username: ").strip()
     password = getpass("Password: ").strip()
 
+    Db_dict.update([('host',host),('username',username),('password',password)])
+
     if not validate_inputs(host=host, username=username):
         return
 
@@ -84,11 +88,21 @@ def auth():
         return
 
     # Connect to the database
-    connection, cursor = sqlMount("localhost", "root", "", "expensify")
+    connection, cursor = sqlMount(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")
     if connection and connection.is_connected():
         try:
-            print(f"Username: {username}")
-            print("Authentication successful.")
+            query = f"SELECT * FROM User WHERE username = {username} AND password = {password}"
+            cursor.execute(query, (username, password))
+            result = cursor.fetchone()
+
+            if result:
+                print("Thanks You are Successfully Logged in")
+                return True
+            else:
+                print("You are not a valid User so You need to Register First")
+                if(Db_User_register(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")):
+                    print("Registration Successfull")
+                    auth()
         except Exception as e:
             print(f"Error during authentication: {e}")
         finally:
