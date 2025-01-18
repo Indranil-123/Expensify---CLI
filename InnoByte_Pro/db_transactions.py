@@ -63,22 +63,42 @@ def Db_table_init(host,username,password,database):
         try:
             connection,cursor = sqlMount(host,username,password,database)
             if connection.is_connected():
-                create_table_query = """
-                            CREATE TABLE IF NOT EXISTS User (
-                                 ID INT NOT NULL AUTO_INCREMENT,
-                                 name VARCHAR(255) NOT NULL,
-                                 username VARCHAR(255) UNIQUE NOT NULL,
-                                 password VARCHAR(255) NOT NULL,
-                                 PRIMARY KEY (ID)
+                cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS users (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                username VARCHAR(50) UNIQUE NOT NULL,
+                                password VARCHAR(255) NOT NULL,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
-                            """
-                cursor.execute(create_table_query)
+                        """)
+                cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS transactions (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT NOT NULL,
+                                amount DECIMAL(10, 2) NOT NULL,
+                                category VARCHAR(50) NOT NULL,
+                                type ENUM('income', 'expense') NOT NULL,
+                                date DATE NOT NULL,
+                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                            )
+                        """)
+                cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS budgets (
+                                id INT AUTO_INCREMENT PRIMARY KEY,
+                                user_id INT NOT NULL,
+                                month YEAR(4) NOT NULL,
+                                budget DECIMAL(10, 2) NOT NULL,
+                                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                                UNIQUE (user_id, month)
+                            )
+                        """)
                 connection.commit()
                 return True
             else:
                 print("Query Problem")
-        except Error as db_error:
-            print(f"Database Error: {db_error}")
+        except Error as error:
+            print(f"Database Error: {error}")
             return False
 
 

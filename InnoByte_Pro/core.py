@@ -68,7 +68,6 @@ def init():
 
     if not validate_inputs(host=host, username=username):
         return
-
     #check the connectivity
     if not Db_init(host, username, password):
         print("Error: Something went wrong. Please try again.")
@@ -110,6 +109,24 @@ def auth():
             connection.close()
     else:
         print("Error: Database connection failed. Please check your credentials and try again.")
+
+
+@main.command()
+def Budget():
+    username = str(input("Please enter your personal username"))
+    month = str(input("please enter month in this format YYYY-MM :"))
+    budget = str(input("enter your budget :"))
+
+    if not validate_inputs(username=username, month=month,budget=budget):
+        return
+
+        # Connect to the database
+    connection, cursor = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+
+    if connection and connection.is_connected():
+        try:
+            cursor.execute("INSERT INTO budgets(user_id,month,budget)VALUES")
+
 
 
 # Entry Point

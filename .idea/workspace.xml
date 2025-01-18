@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="baab2b12-5fcf-4701-a445-2f5f794c0041" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/material_theme_project_new.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/material_theme_project_new.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/InnoByte_Pro/core.py" beforeDir="false" afterPath="$PROJECT_DIR$/InnoByte_Pro/core.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/InnoByte_Pro/db_transactions.py" beforeDir="false" afterPath="$PROJECT_DIR$/InnoByte_Pro/db_transactions.py" afterDir="false" />
@@ -36,7 +37,7 @@
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "last_opened_file_path": "C:/Users/91906/PycharmProjects/Expensify---CLI",
-    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings"
+    "settings.editor.selected.configurable": "preferences.lookFeel"
   }
 }]]></component>
   <component name="SharedIndexes">
