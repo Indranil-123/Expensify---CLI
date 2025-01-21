@@ -100,7 +100,7 @@ def auth():
             else:
                 print("You are not a valid User so You need to Register First")
                 if(Db_User_register(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")):
-                    print("Registration Successfull")
+                    print("Registration Successful")
                     auth()
         except Exception as e:
             print(f"Error during authentication: {e}")
@@ -120,12 +120,60 @@ def Budget():
     if not validate_inputs(username=username, month=month,budget=budget):
         return
 
-        # Connect to the database
     connection, cursor = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
 
     if connection and connection.is_connected():
         try:
-            cursor.execute("INSERT INTO budgets(user_id,month,budget)VALUES")
+            cursor.execute("""
+                        INSERT INTO budgets (user_id, month, budget)
+                        VALUES (%s, %s, %s)
+                        ON DUPLICATE KEY UPDATE budget = %s
+                    """, (user_id, month, budget, budget))
+            connection.commit()
+            print("The Budget is successfully added")
+        except mysql.connector.Error as e:
+            print(f"Error during authentication: {e}")
+        finally:
+            cursor.close()
+            connection.close()
+
+main.command()
+def transaction():
+    user_id = input("user_id :").strip()
+    amount = input("Amount :").strip()
+    category = input("Category :").strip()
+    type = input("Income/Expenses :")
+    date = input("Date(YYY-MM-DD)").strip()
+
+    if not validate_inputs(amount,category,type,date):
+        return
+
+    connection , cursor = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+
+    try :
+        if connection and connection.is_connected():
+            month = date[0:7]
+            cursor.execute("""
+                            SELECT budget, COALESCE(SUM(amount), 0) AS total_expenses
+                            FROM budgets
+                            LEFT JOIN transactions ON budgets.user_id = transactions.user_id AND MONTH(transactions.date) = MONTH(%s)
+                            WHERE budgets.user_id = %s AND budgets.month = %s
+                        """, (date, user_id, month))
+            data = cursor.fetchone()
+            budget, expense = data;
+            if expense + amount > budget:
+                print("Your Amount is crossed the limits of budget")
+
+        cursor.execute("""
+                         INSERT INTO transactions (user_id, amount, category, type, date)
+                          VALUES (%s, %s, %s, %s, %s)
+                      """, (user_id, amount, category, type, date))
+
+        connection.commit()
+    except mysql.connector.Error as err:
+        print(f"Error during authentication: {err}")
+    finally:
+        connection.close()
 
 
 
