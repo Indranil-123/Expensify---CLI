@@ -1,182 +1,200 @@
-# Importing necessary libraries
 import click
-from pyfiglet import Figlet
 import mysql.connector
 from db_transactions import *
+from pyfiglet import Figlet
 from getpass import getpass
-import wmi
-
-# Constants
-APP_VERSION = '0.01'
-APP_NAME = 'ExpensiFy CLI'
-DEFAULT_FONT = 'slant'
-
-Db_dict = {'id':1}
 
 
-# Helper Functions
-def display_banner():
-    """Displays the application banner."""
-    banner = Figlet(font=DEFAULT_FONT)
-    print(banner.renderText(APP_NAME))
+user_global = None
 
+Db_dict ={'id':1}
 
-def check_server_status(process_name="xampp-control.exe"):
-    try:
-        f = wmi.WMI()
-        for process in f.Win32_Process():
-            if process.Name.lower() == process_name.lower():
-                return True
-        return False
-    except Exception as e:
-        print(f"Error checking server status: {e}")
-        return False
-
-
-def validate_inputs(**kwargs):
-    for field, value in kwargs.items():
-        if not value:
-            print(f"Error: {field.capitalize()} is required.")
-            return False
-    return True
-
-
-# CLI Group Initialization
 @click.group()
-@click.version_option(version=APP_VERSION, prog_name=APP_NAME)
+@click.version_option(version='0.01',prog_name="Expensify CLI")
 def main():
-    """Welcome to Expensify CLI. Use the appropriate commands to get started."""
-    pass
+    Header = Figlet(font='slant')
+    print(Header.renderText('ExpensiFy CLI'))
 
-
-# Init Command
 @main.command()
 def init():
-    """Initializes the Expensify CLI."""
-    display_banner()
-    print("Initializing, please wait...")
+    host = str(input("Host :"))
+    username = str(input("username :"))
+    password = str(input("Passsword :"))
 
-    if not check_server_status():
-        print("Error: Your server application is not running. Please start it and try again.")
-        return
+    Db_dict.update([('host', host), ('username', username), ('password', password)])
 
-    host = input("Host: ").strip()
-    username = input("Username: ").strip()
-    password = getpass("Password: ").strip()
+    if not Db_init(host,username,password):
+        print("Something Went wrong")
+    else :
+        print("database initialized")
 
-    Db_dict.update([('host',host),('username',username),('password',password)])
-
-    if not validate_inputs(host=host, username=username):
-        return
-    #check the connectivity
-    if not Db_init(host, username, password):
-        print("Error: Something went wrong. Please try again.")
-    else:
-        print("Database initialized successfully!")
-
-
-# Auth Command
 @main.command()
-def auth():
-    """Authenticates the username and Password"""
-    username = input("Please enter your username: ").strip()
-    password = getpass("Please enter your password: ")
+def Authentication():
+    usr_username = str(input("Your Username"))
+    usr_password = str(input("Your password"))
 
-    # Validate inputs
-    if not validate_inputs(username=username, password=password):
-        return
-
-    # Connect to the database
-    connection, cursor = sqlMount(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")
-    if connection and connection.is_connected():
+    conn , cur = sqlMount(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")
+    if conn.is_connected():
         try:
-            query = f"SELECT * FROM User WHERE username = {username} AND password = {password}"
-            cursor.execute(query, (username, password))
-            result = cursor.fetchone()
+            query = "SELECT * FROM User WHERE username = %s AND password = %s"
+            cur.execute(query, (usr_username, usr_password))
+            data = cur.fetchone()
 
-            if result:
-                print("Thanks You are Successfully Logged in")
+            if data:
+                print("thanks successfully Logged in")
                 return True
             else:
-                print("You are not a valid User so You need to Register First")
+                print("You are not valid user so you need to register")
                 if(Db_User_register(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")):
                     print("Registration Successful")
-                    auth()
+                    Authentication()
         except Exception as e:
-            print(f"Error during authentication: {e}")
+            print(f"Error in authentication : {e}")
         finally:
-            cursor.close()
-            connection.close()
+            cur.close()
+            conn.close()
     else:
-        print("Error: Database connection failed. Please check your credentials and try again.")
-
+        print("Database connection faled Please Try again")
 
 @main.command()
 def Budget():
-    username = str(input("Please enter your personal username"))
-    month = str(input("please enter month in this format YYYY-MM :"))
+    usr_username = str(input("Please enter your personal username"))
+    b_month = str(input("please enter month in this format YYYY-MM :"))
     budget = str(input("enter your budget :"))
+    global user_global
 
-    if not validate_inputs(username=username, month=month,budget=budget):
-        return
-
-    connection, cursor = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
-
-    if connection and connection.is_connected():
+    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+    if conn.is_connected():
         try:
-            cursor.execute("""
-                        INSERT INTO budgets (user_id, month, budget)
-                        VALUES (%s, %s, %s)
-                        ON DUPLICATE KEY UPDATE budget = %s
-                    """, (user_id, month, budget, budget))
-            connection.commit()
-            print("The Budget is successfully added")
+            q = "SELECT id FROM users WHERE username = %s"
+            cur.execute(q,(usr_username))
+            res = cur.fetchone()
+            if res:
+                user_global = res[0]
+                cur.execute("""
+                                 INSERT INTO budgets (user_id, month, budget)
+                                 VALUES (%s, %s, %s)
+                                 ON DUPLICATE KEY UPDATE budget = %s
+                                """, (user_global, b_month, budget, budget))
+                conn.commit()
+                print("The budget is successfully")
         except mysql.connector.Error as e:
-            print(f"Error during authentication: {e}")
+            print(f"error {e}")
         finally:
-            cursor.close()
-            connection.close()
+            cur.close()
+            conn.close()
 
-main.command()
+@main.command()
 def transaction():
-    user_id = input("user_id :").strip()
+    global user_global
+    user_id = user_global
     amount = input("Amount :").strip()
     category = input("Category :").strip()
     type = input("Income/Expenses :")
     date = input("Date(YYY-MM-DD)").strip()
 
-    if not validate_inputs(amount,category,type,date):
-        return
-
-    connection , cursor = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
-
-    try :
-        if connection and connection.is_connected():
-            month = date[0:7]
-            cursor.execute("""
+    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+    try:
+        if conn.is_connected():
+            month = date[:7]
+            cur.execute("""
                             SELECT budget, COALESCE(SUM(amount), 0) AS total_expenses
                             FROM budgets
                             LEFT JOIN transactions ON budgets.user_id = transactions.user_id AND MONTH(transactions.date) = MONTH(%s)
                             WHERE budgets.user_id = %s AND budgets.month = %s
                         """, (date, user_id, month))
-            data = cursor.fetchone()
-            budget, expense = data;
-            if expense + amount > budget:
-                print("Your Amount is crossed the limits of budget")
-
-        cursor.execute("""
+            data = cur.fetchone()
+            budget,expense = data;
+            if expense + amount >budget:
+                print("Your amount is crossed the limit of budget")
+        cur.execute("""
                          INSERT INTO transactions (user_id, amount, category, type, date)
                           VALUES (%s, %s, %s, %s, %s)
                       """, (user_id, amount, category, type, date))
-
-        connection.commit()
-    except mysql.connector.Error as err:
-        print(f"Error during authentication: {err}")
+        conn.commit()
+    except mysql.connector.Error as e:
+        print(f"Error {e}")
     finally:
-        connection.close()
+        conn.close()
+
+
+@main.command()
+def report():
+    username = input("Username").strip()
+    print("1 for yearly report")
+    print("1 for monthly report")
+    print("1 for category wise")
+    ch = input("your Choise").strip()
+
+    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+    try:
+        if ch == "1":
+            month = input("Enter the month in YYYY-MM format : ").strip()
+            q = """
+                        SELECT 
+                            category, 
+                            type, 
+                            SUM(amount) AS total_amount 
+                        FROM transactions 
+                        WHERE username = %s AND DATE_FORMAT(date, '%%Y-%%m') = %s 
+                        GROUP BY category, type
+                    """
+            cur.execute(q, (username, month))
+            res = cur.fetchall()
+
+            if res:
+                print("monthly report is :")
+                for row in res:
+                    print(f"Category: {row['category']}, Type: {row['type']}, Total Amount: {row['total_amount']}")
+            else:
+                print("No transactions have made yet")
+
+        elif ch == "2":
+            year = input("Enter the year (YYYY): ").strip()
+            q = """
+                        SELECT 
+                            category, 
+                            type, 
+                            SUM(amount) AS total_amount 
+                        FROM transactions 
+                        WHERE username = %s AND YEAR(date) = %s 
+                        GROUP BY category, type
+                    """
+            cur.execute(q, (username, year))
+            res = cur.fetchall()
+
+            if res:
+                print("yearly result")
+                for val in res:
+                    print(f"Category: {val['category']}, Type: {val['type']}, Total Amount: {val['amount']}")
+            else:
+                print("no transtsaction")
+        elif ch == "3":
+            q = """
+                        SELECT 
+                            category, 
+                            type, 
+                            SUM(amount) AS total_amount 
+                        FROM transactions 
+                        WHERE username = %s 
+                        GROUP BY category, type
+                    """
+            cur.execute(q, (username))
+            res = cur.fetchall()
+
+            if res:
+                for row in res:
+                    print(f"Category: {row['category']}, Type: {row['type']}, Total Amount: {row['total_amount']}")
+            else:
+                print("No transactions have made yet")
+        else:
+            print("invalid choice")
+    except mysql.connector.Error as e:
+        print(f"Error:{e}")
+    finally:
+        conn.close()
 
 
 
-# Entry Point
 if __name__ == '__main__':
     main()
