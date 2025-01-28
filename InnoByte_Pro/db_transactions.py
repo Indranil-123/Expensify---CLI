@@ -104,7 +104,7 @@ def Db_User_register(host,username,password,db):
     name = str(input("Name"))
     u_username = str(input("Username"))
     u_password = str(input("Password"))
-    if not all([name,u_username,u_password]):
+    if not all([name, u_username, u_password]):
         print("Credentials is needed")
     else:
         try:

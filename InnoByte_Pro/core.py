@@ -2,26 +2,28 @@ import click
 import mysql.connector
 from db_transactions import *
 from pyfiglet import Figlet
-from getpass import getpass
-
 
 user_global = None
 
-Db_dict ={'id':1}
+Db_dict ={'id': 1}
 
 @click.group()
-@click.version_option(version='0.01',prog_name="Expensify CLI")
+@click.version_option(version='0.01', prog_name="Expensify CLI")
 def main():
-    Header = Figlet(font='slant')
-    print(Header.renderText('ExpensiFy CLI'))
+    header = Figlet(font='slant')
+    print(header.renderText('ExpensiFy CLI'))
 
 @main.command()
 def init():
-    host = str(input("Host :"))
-    username = str(input("username :"))
-    password = str(input("Passsword :"))
+    host = input("Host :").strip()
+    username = input("username :").strip()
+    password = input("Passsword :").strip()
 
-    Db_dict.update([('host', host), ('username', username), ('password', password)])
+    if not all([host, username, password]):
+        print("The Host, Username, Password is can't be empty")
+        return
+
+    Db_dict.update({'host':host, 'username' : username, 'password': password})
 
     if not Db_init(host,username,password):
         print("Something Went wrong")
@@ -30,8 +32,13 @@ def init():
 
 @main.command()
 def Authentication():
-    usr_username = str(input("Your Username"))
-    usr_password = str(input("Your password"))
+    global user_global
+    usr_username = input("Your Username").strip()
+    usr_password = input("Your password").strip()
+
+    if not all([usr_username,usr_password]):
+        print("All fields are needed...")
+        return
 
     conn , cur = sqlMount(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")
     if conn.is_connected():
@@ -42,6 +49,7 @@ def Authentication():
 
             if data:
                 print("thanks successfully Logged in")
+                user_global = data['id']
                 return True
             else:
                 print("You are not valid user so you need to register")
@@ -62,6 +70,14 @@ def Budget():
     b_month = str(input("please enter month in this format YYYY-MM :"))
     budget = str(input("enter your budget :"))
     global user_global
+
+    if not user_global:
+        print("you need to log in first")
+        return
+
+    if not all([usr_username,b_month,budget]):
+        print("All fields are needed...")
+        return
 
     conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
     if conn.is_connected():
@@ -87,11 +103,19 @@ def Budget():
 @main.command()
 def transaction():
     global user_global
-    user_id = user_global
+
+    if not user_global:
+        print("You need to Login First")
+        return
+
     amount = input("Amount :").strip()
     category = input("Category :").strip()
     type = input("Income/Expenses :")
     date = input("Date(YYY-MM-DD)").strip()
+
+    if not all([user_global,amount,category,type,date]):
+        print("all fields needed...")
+        return
 
     conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
     try:
@@ -102,15 +126,15 @@ def transaction():
                             FROM budgets
                             LEFT JOIN transactions ON budgets.user_id = transactions.user_id AND MONTH(transactions.date) = MONTH(%s)
                             WHERE budgets.user_id = %s AND budgets.month = %s
-                        """, (date, user_id, month))
+                        """, (date, user_global, month))
             data = cur.fetchone()
-            budget,expense = data;
-            if expense + amount >budget:
+            budget, expense = data
+            if expense + amount > budget:
                 print("Your amount is crossed the limit of budget")
         cur.execute("""
                          INSERT INTO transactions (user_id, amount, category, type, date)
                           VALUES (%s, %s, %s, %s, %s)
-                      """, (user_id, amount, category, type, date))
+                      """, (user_global, amount, category, type, date))
         conn.commit()
     except mysql.connector.Error as e:
         print(f"Error {e}")
