@@ -5,18 +5,18 @@ from mysql.connector import Error
 def sqlMount(host, user, password, database):
         try:
             # Establish the connection
-            connection = mysql.connector.connect(
+            conn= mysql.connector.connect(
                 host=host,
                 user=user,
                 password=password,
                 database=database
             )
 
-            if connection.is_connected():
+            if conn.is_connected():
                 # Create a cursor object
-                cursor = connection.cursor()
+                cursor = conn.cursor()
                 print("Connection to MySQL database established successfully.")
-                return connection, cursor
+                return conn, cursor
 
         except Error as e:
             print(f"Error while connecting to MySQL: {e}")
@@ -57,29 +57,29 @@ def Db_init(host, username, password):
 
 
 def Db_table_init(host,username,password,database):
-    if not all([host,username,password,database]):
+    if not all([host,username,database]):
         print("Database Credentials (Host,Username,Password,Database) -> needed.....")
+
     else:
         try:
             connection,cursor = sqlMount(host,username,password,database)
             if connection.is_connected():
                 cursor.execute("""
-                            CREATE TABLE IF NOT EXISTS users (
-                                id INT AUTO_INCREMENT PRIMARY KEY,
-                                username VARCHAR(50) UNIQUE NOT NULL,
-                                password VARCHAR(255) NOT NULL,
-                            )
+                           CREATE TABLE `expensify`.`users` 
+                           (`id` INT NOT NULL AUTO_INCREMENT , `username` VARCHAR(255) NOT NULL ,
+                            `password` VARCHAR(255) NOT NULL , 
+                            PRIMARY KEY (`id`)) ENGINE = InnoDB;
                         """)
                 cursor.execute("""
                             CREATE TABLE IF NOT EXISTS transactions (
-                                id INT AUTO_INCREMENT PRIMARY KEY,
-                                user_id INT NOT NULL,
-                                amount DECIMAL(10, 2) NOT NULL,
-                                category VARCHAR(255) NOT NULL,
-                                type ENUM('income', 'expense') NOT NULL,
-                                date DATE NOT NULL,
-                                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                            )
+                                    id INT AUTO_INCREMENT PRIMARY KEY,
+                                    user_id INT NOT NULL,
+                                    amount DECIMAL(10, 2) NOT NULL,
+                                    category VARCHAR(255) NOT NULL,
+                                    type ENUM('income', 'expense') NOT NULL,
+                                    date DATE NOT NULL,
+                                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
                         """)
                 cursor.execute("""
                             CREATE TABLE IF NOT EXISTS budgets (
@@ -101,23 +101,22 @@ def Db_table_init(host,username,password,database):
 
 
 def Db_User_register(host,username,password,db):
-    name = str(input("Name"))
     u_username = str(input("Username"))
     u_password = str(input("Password"))
-    if not all([name, u_username, u_password]):
+    if not all([u_username, u_password]):
         print("Credentials is needed")
     else:
         try:
             connection,cursor = sqlMount(host,username,password,db)
             if connection.is_connected():
-                cursor.execute("SELECT * FROM User WHERE username = %s", (username,))
+                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
                 if cursor.fetchone():
                     print("User already exists. Please choose a different username.")
                     return False
 
                 cursor.execute(
-                    "INSERT INTO User (name, username, password) VALUES (%s, %s, %s)",
-                    (name, u_username,u_password)
+                    "INSERT INTO users (username, password) VALUES (%s, %s)",
+                    (u_username,u_password)
                 )
                 connection.commit()
                 print("Registration successful!")
@@ -126,6 +125,22 @@ def Db_User_register(host,username,password,db):
         except Error as db_error:
             print(f"Database Error: {db_error}")
             return False
+
+
+def find_user_id(username):
+    conn, cur = sqlMount('localhost','root','', "expensify")
+
+    if conn and conn.is_connected():
+        try :
+            q = "SELECT id FROM users WHERE username = %s"
+            cur.execute(q, (username))
+            data = cur.fetchone()
+            if data:
+                user_id = data[0]
+                return user_id
+        except mysql.connector.Error as e:
+            print(f"Error for Finding User Id Error : {e}")
+
 
 
 

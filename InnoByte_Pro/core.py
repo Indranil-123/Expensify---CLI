@@ -5,7 +5,7 @@ from pyfiglet import Figlet
 
 user_global = None
 
-Db_dict ={'id': 1}
+
 
 @click.group()
 @click.version_option(version='0.01', prog_name="Expensify CLI")
@@ -19,11 +19,9 @@ def init():
     username = input("username :").strip()
     password = input("Passsword :").strip()
 
-    if not all([host, username, password]):
+    if not all([host, username]):
         print("The Host, Username, Password is can't be empty")
         return
-
-    Db_dict.update({'host':host, 'username' : username, 'password': password})
 
     if not Db_init(host,username,password):
         print("Something Went wrong")
@@ -33,27 +31,30 @@ def init():
 @main.command()
 def Authentication():
     global user_global
-    usr_username = input("Your Username").strip()
-    usr_password = input("Your password").strip()
+    usr_username = input("Your Username : ").strip()
+    usr_password = input("Your password : ").strip()
 
     if not all([usr_username,usr_password]):
         print("All fields are needed...")
         return
 
-    conn , cur = sqlMount(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")
-    if conn.is_connected():
+    conn, cur = sqlMount('localhost','root','', "expensify")
+    print(conn)
+    if conn and conn.is_connected():
         try:
-            query = "SELECT * FROM User WHERE username = %s AND password = %s"
+
+            query = "SELECT * FROM users WHERE username = %s AND password = %s"
             cur.execute(query, (usr_username, usr_password))
             data = cur.fetchone()
 
             if data:
                 print("thanks successfully Logged in")
-                user_global = data['id']
+                user_global = data[0]
+                print(f"your User id Is : {user_global} ")
                 return True
             else:
                 print("You are not valid user so you need to register")
-                if(Db_User_register(Db_dict['host'], Db_dict['username'],Db_dict['password'], "expensify")):
+                if(Db_User_register('localhost','root','', "expensify")):
                     print("Registration Successful")
                     Authentication()
         except Exception as e:
@@ -62,38 +63,32 @@ def Authentication():
             cur.close()
             conn.close()
     else:
-        print("Database connection faled Please Try again")
+        print("Database connection failed Please Try again")
 
 @main.command()
 def Budget():
-    usr_username = str(input("Please enter your personal username"))
-    b_month = str(input("please enter month in this format YYYY-MM :"))
-    budget = str(input("enter your budget :"))
+    usr_username = input("Please enter your personal username").strip()
+    b_month = input("please enter month in this format YYYY-MM :").strip()
+    budget = input("enter your budget :").strip()
     global user_global
 
-    if not user_global:
-        print("you need to log in first")
-        return
 
     if not all([usr_username,b_month,budget]):
         print("All fields are needed...")
         return
 
-    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
-    if conn.is_connected():
+    conn, cur = sqlMount('localhost','root','', "expensify")
+    if conn and conn.is_connected():
         try:
-            q = "SELECT id FROM users WHERE username = %s"
-            cur.execute(q,(usr_username))
-            res = cur.fetchone()
-            if res:
-                user_global = res[0]
-                cur.execute("""
-                                 INSERT INTO budgets (user_id, month, budget)
-                                 VALUES (%s, %s, %s)
-                                 ON DUPLICATE KEY UPDATE budget = %s
-                                """, (user_global, b_month, budget, budget))
-                conn.commit()
-                print("The budget is successfully")
+            user_id = find_user_id(usr_username)
+            cur.execute("""
+                                             INSERT INTO budgets (user_id, month, budget)
+                                             VALUES (%s, %s, %s)
+                                             ON DUPLICATE KEY UPDATE budget = %s
+                                            """, (user_id, b_month, budget, budget))
+            conn.commit()
+            print("The budget is successfully Assigned")
+
         except mysql.connector.Error as e:
             print(f"error {e}")
         finally:
@@ -102,31 +97,27 @@ def Budget():
 
 @main.command()
 def transaction():
-    global user_global
-
-    if not user_global:
-        print("You need to Login First")
-        return
-
+    username = input("Username : ").strip()
     amount = input("Amount :").strip()
     category = input("Category :").strip()
     type = input("Income/Expenses :")
     date = input("Date(YYY-MM-DD)").strip()
 
-    if not all([user_global,amount,category,type,date]):
+    if not all([amount,category,type,date]):
         print("all fields needed...")
         return
 
-    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+    conn, cur = sqlMount('localhost','root','', "expensify")
     try:
         if conn.is_connected():
+            user_id = find_user_id(username)
             month = date[:7]
             cur.execute("""
                             SELECT budget, COALESCE(SUM(amount), 0) AS total_expenses
                             FROM budgets
                             LEFT JOIN transactions ON budgets.user_id = transactions.user_id AND MONTH(transactions.date) = MONTH(%s)
                             WHERE budgets.user_id = %s AND budgets.month = %s
-                        """, (date, user_global, month))
+                        """, (date, user_id, month))
             data = cur.fetchone()
             budget, expense = data
             if expense + amount > budget:
@@ -134,7 +125,7 @@ def transaction():
         cur.execute("""
                          INSERT INTO transactions (user_id, amount, category, type, date)
                           VALUES (%s, %s, %s, %s, %s)
-                      """, (user_global, amount, category, type, date))
+                      """, (user_id, amount, category, type, date))
         conn.commit()
     except mysql.connector.Error as e:
         print(f"Error {e}")
@@ -144,13 +135,13 @@ def transaction():
 
 @main.command()
 def report():
-    username = input("Username").strip()
+    username = input("Username : ").strip()
     print("1 for yearly report")
     print("1 for monthly report")
     print("1 for category wise")
-    ch = input("your Choise").strip()
+    ch = input("your Choice :").strip()
 
-    conn, cur = sqlMount(Db_dict['host'], Db_dict['username'], Db_dict['password'], "expensify")
+    conn, cur = sqlMount('localhost','root','', "expensify")
     try:
         if ch == "1":
             month = input("Enter the month in YYYY-MM format : ").strip()
