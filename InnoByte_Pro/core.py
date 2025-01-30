@@ -3,7 +3,6 @@ import mysql.connector
 from db_transactions import *
 from pyfiglet import Figlet
 
-user_global = None
 
 
 
@@ -30,7 +29,6 @@ def init():
 
 @main.command()
 def Authentication():
-    global user_global
     usr_username = input("Your Username : ").strip()
     usr_password = input("Your password : ").strip()
 
@@ -70,8 +68,6 @@ def Budget():
     usr_username = input("Please enter your personal username").strip()
     b_month = input("please enter month in this format YYYY-MM :").strip()
     budget = input("enter your budget :").strip()
-    global user_global
-
 
     if not all([usr_username,b_month,budget]):
         print("All fields are needed...")
@@ -95,10 +91,11 @@ def Budget():
             cur.close()
             conn.close()
 
+
 @main.command()
 def transaction():
     username = input("Username : ").strip()
-    amount = input("Amount :").strip()
+    amount = int(input("Amount :"))
     category = input("Category :").strip()
     type = input("Income/Expenses :")
     date = input("Date(YYY-MM-DD)").strip()
@@ -142,6 +139,7 @@ def report():
     ch = input("your Choice :").strip()
 
     conn, cur = sqlMount('localhost','root','', "expensify")
+    user_id = find_user_id(username)
     try:
         if ch == "1":
             month = input("Enter the month in YYYY-MM format : ").strip()
@@ -151,10 +149,10 @@ def report():
                             type, 
                             SUM(amount) AS total_amount 
                         FROM transactions 
-                        WHERE username = %s AND DATE_FORMAT(date, '%%Y-%%m') = %s 
+                        WHERE user_id = %s AND DATE_FORMAT(date, '%%Y-%%m') = %s 
                         GROUP BY category, type
                     """
-            cur.execute(q, (username, month))
+            cur.execute(q, (user_id, month))
             res = cur.fetchall()
 
             if res:
@@ -172,10 +170,10 @@ def report():
                             type, 
                             SUM(amount) AS total_amount 
                         FROM transactions 
-                        WHERE username = %s AND YEAR(date) = %s 
+                        WHERE user_id = %s AND YEAR(date) = %s 
                         GROUP BY category, type
                     """
-            cur.execute(q, (username, year))
+            cur.execute(q, (user_id, year))
             res = cur.fetchall()
 
             if res:
@@ -191,10 +189,10 @@ def report():
                             type, 
                             SUM(amount) AS total_amount 
                         FROM transactions 
-                        WHERE username = %s 
+                        WHERE user_id = %s 
                         GROUP BY category, type
                     """
-            cur.execute(q, (username))
+            cur.execute(q, (user_id,))
             res = cur.fetchall()
 
             if res:

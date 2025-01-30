@@ -132,14 +132,16 @@ def find_user_id(username):
 
     if conn and conn.is_connected():
         try :
-            q = "SELECT id FROM users WHERE username = %s"
-            cur.execute(q, (username))
+            q = "SELECT * FROM users WHERE username = %s"
+            cur.execute(q, (username,))
             data = cur.fetchone()
             if data:
                 user_id = data[0]
                 return user_id
         except mysql.connector.Error as e:
             print(f"Error for Finding User Id Error : {e}")
+        finally:
+            conn.close()
 
 
 
