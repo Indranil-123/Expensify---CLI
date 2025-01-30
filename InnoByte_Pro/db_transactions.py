@@ -145,6 +145,40 @@ def find_user_id(username):
 
 
 
+def Check_Authentication():
+    usr_username = input("Your Username : ").strip()
+    usr_password = input("Your password : ").strip()
+
+    if not all([usr_username,usr_password]):
+        print("All fields are needed...")
+        return
+
+    conn, cur = sqlMount('localhost','root','', "expensify")
+    print(conn)
+    if conn and conn.is_connected():
+        try:
+
+            query = "SELECT * FROM users WHERE username = %s AND password = %s"
+            cur.execute(query, (usr_username, usr_password))
+            data = cur.fetchone()
+
+            if data:
+                print("thanks successfully Logged in")
+                user_global = data[0]
+                print(f"your User id Is : {user_global} ")
+                return True
+            else:
+                print("You are not valid user so you need to register")
+                if(Db_User_register('localhost','root','', "expensify")):
+                    print("Registration Successful")
+        except Exception as e:
+            print(f"Error in authentication : {e}")
+        finally:
+            cur.close()
+            conn.close()
+    else:
+        print("Database connection failed Please Try again")
+
 
 
 
